@@ -5,11 +5,7 @@ import { action } from "./_generated/server";
 const DEMO_CALL_ID = "1c604de4-bce6-4eda-8e12-91b533a89d1f";
 
 export const callTranscriptionService = action({
-  args: {
-    callId: v.string(),
-  },
   handler: async () => {
-    // Use demo call ID for now, ignore the passed callId
     const callIdToUse = DEMO_CALL_ID;
 
     const response = await fetch(`https://api.vapi.ai/call/${callIdToUse}`, {
@@ -25,6 +21,21 @@ export const callTranscriptionService = action({
 
     const data = await response.json();
     console.log(`Fetched transcript for call ID: ${callIdToUse}`, data);
+    const transcript: string = data.transcript;
+    try {
+    await fetch(`${process.env.PYTHON_BACKEND_URL}/process-transcript`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+          transcript: transcript,
+        }),
+      });
+      console.log("Transcript processed");
+    } catch (error) {
+      console.error("Error processing transcript:", error);
+    }
     return data;
   },
 });

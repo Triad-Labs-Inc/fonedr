@@ -200,9 +200,7 @@ export function useTwilioDevice({
       console.log("Hanging up call");
       currentCall.disconnect();
       setCurrentCall(null);
-      startTranscription({
-        callId: '1c604de4-bce6-4eda-8e12-91b533a89d1f',
-      })
+      startTranscription()
     }
   }, [currentCall]);
 
