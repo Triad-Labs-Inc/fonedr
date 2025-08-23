@@ -42,8 +42,8 @@ export function useTwilioDevice({
       });
 
       // Register device event handlers
-      newDevice.on("ready", () => {
-        console.log("Twilio Device ready");
+      newDevice.on("registered", () => {
+        console.log("Twilio Device registered and ready");
         setIsReady(true);
         setError(null);
       });
