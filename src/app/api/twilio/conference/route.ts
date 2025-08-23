@@ -11,6 +11,8 @@ const client = twilio(accountSid, authToken);
 export async function POST(request: NextRequest) {
   try {
     const { phoneNumber, conferenceName } = await request.json();
+    
+    console.log("Conference endpoint called with:", { phoneNumber, conferenceName });
 
     if (!phoneNumber || !conferenceName) {
       return NextResponse.json(
@@ -26,24 +28,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get base URL from environment
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
+    
+    console.log("Using base URL:", baseUrl);
+
     // Create TwiML for joining conference
-    const conferenceUrl = `${request.nextUrl.origin}/api/twilio/join-conference?name=${encodeURIComponent(conferenceName)}`;
+    const conferenceUrl = `${baseUrl}/api/twilio/join-conference?name=${encodeURIComponent(conferenceName)}`;
+    const statusCallbackUrl = `${baseUrl}/api/twilio/status`;
 
     // Call the user-entered number and connect to conference
     const call1Promise = client.calls.create({
       url: conferenceUrl,
-      to: phoneNumber,
+      // to: phoneNumber,
+      to: secondParticipant,
       from: twilioPhoneNumber!,
-      statusCallback: `${request.nextUrl.origin}/api/twilio/status`,
+      statusCallback: statusCallbackUrl,
       statusCallbackMethod: 'POST',
     });
 
     // Call the second participant and connect to conference
     const call2Promise = client.calls.create({
       url: conferenceUrl,
-      to: secondParticipant,
+      // to: secondParticipant,
+      to: phoneNumber,
       from: twilioPhoneNumber!,
-      statusCallback: `${request.nextUrl.origin}/api/twilio/status`,
+      statusCallback: statusCallbackUrl,
       statusCallbackMethod: 'POST',
     });
 

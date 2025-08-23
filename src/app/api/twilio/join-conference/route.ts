@@ -10,6 +10,11 @@ export async function POST(request: NextRequest) {
       return new NextResponse("Conference name is required", { status: 400 });
     }
 
+    // Get base URL from environment or use a fallback
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+                    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` :
+                    url.origin;
+
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
 
@@ -21,7 +26,7 @@ export async function POST(request: NextRequest) {
         waitUrl: "http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical",
         startConferenceOnEnter: true,
         endConferenceOnExit: false,
-        statusCallback: `${url.origin}/api/twilio/conference-status`,
+        statusCallback: `${baseUrl}/api/twilio/conference-status`,
         statusCallbackMethod: "POST",
         statusCallbackEvent: ["start", "end", "join", "leave"],
       },

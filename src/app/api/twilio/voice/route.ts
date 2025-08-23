@@ -10,10 +10,28 @@ export async function POST(request: NextRequest) {
     const conferenceMode = formData.get("ConferenceMode") as string;
     const conferenceName = formData.get("ConferenceName") as string;
     
+    console.log("Voice endpoint called with:", { to, conferenceMode, conferenceName });
+    
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
 
+    // Add a simple response first to test connectivity
+    if (!to && !conferenceMode) {
+      response.say("Voice connection established. Ready for calls.");
+      return new NextResponse(response.toString(), {
+        status: 200,
+        headers: {
+          "Content-Type": "text/xml",
+        },
+      });
+    }
+
     if (conferenceMode === "true" && conferenceName) {
+      // Get base URL from environment or use a fallback
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL!;
+      
+      console.log("Conference mode - joining conference:", conferenceName);
+      
       // Conference mode: connect caller to conference room
       const dial = response.dial({
         callerId: twilioPhoneNumber,
@@ -24,7 +42,7 @@ export async function POST(request: NextRequest) {
           waitUrl: "http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical",
           startConferenceOnEnter: true,
           endConferenceOnExit: true, // End conference when initiator leaves
-          statusCallback: `${request.nextUrl.origin}/api/twilio/conference-status`,
+          statusCallback: `${baseUrl}/api/twilio/conference-status`,
           statusCallbackMethod: "POST",
           statusCallbackEvent: ["start", "end", "join", "leave"],
         },

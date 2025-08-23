@@ -65,7 +65,7 @@ function BottomTabs({
 }
 
 function DialPad() {
-  const [digits, setDigits] = useState<string>("");
+  const [digits, setDigits] = useState<string>("4806068199");
   const [activeCallId, setActiveCallId] = useState<Id<"calls"> | null>(null);
   const [callDuration, setCallDuration] = useState(0);
   const [conferenceMode, setConferenceMode] = useState(true); // Default to conference mode

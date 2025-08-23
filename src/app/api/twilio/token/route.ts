@@ -42,7 +42,6 @@ export async function POST() {
     // Add grant to token
     token.addGrant(voiceGrant);
 
-    console.log({token: token.toJwt()})
 
     return NextResponse.json({
       token: token.toJwt(),
