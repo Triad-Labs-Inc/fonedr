@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { action, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 export const list = query({
   args: {},
@@ -17,26 +18,32 @@ export const create = mutation({
   args: {
     number: v.string(),
     name: v.optional(v.string()),
-    type: v.union(v.literal("incoming"), v.literal("outgoing"), v.literal("missed")),
+    type: v.union(
+      v.literal("incoming"),
+      v.literal("outgoing"),
+      v.literal("missed"),
+    ),
     twilioCallSid: v.optional(v.string()),
-    status: v.optional(v.union(
-      v.literal("initiating"),
-      v.literal("ringing"),
-      v.literal("in-progress"),
-      v.literal("completed"),
-      v.literal("failed"),
-      v.literal("busy"),
-      v.literal("no-answer"),
-      v.literal("canceled")
-    )),
+    status: v.optional(
+      v.union(
+        v.literal("initiating"),
+        v.literal("ringing"),
+        v.literal("in-progress"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("busy"),
+        v.literal("no-answer"),
+        v.literal("canceled"),
+      ),
+    ),
     conferenceRoom: v.optional(v.string()),
     participants: v.optional(v.array(v.string())),
     isConference: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const createdAt = Date.now();
-    const id = await ctx.db.insert("calls", { 
-      ...args, 
+    const id = await ctx.db.insert("calls", {
+      ...args,
       createdAt,
       status: args.status || "initiating",
       startTime: createdAt,
@@ -55,31 +62,42 @@ export const remove = mutation({
 export const updateByTwilioSid = mutation({
   args: {
     twilioCallSid: v.string(),
-    status: v.optional(v.union(
-      v.literal("initiating"),
-      v.literal("ringing"),
-      v.literal("in-progress"),
-      v.literal("completed"),
-      v.literal("failed"),
-      v.literal("busy"),
-      v.literal("no-answer"),
-      v.literal("canceled")
-    )),
+    status: v.optional(
+      v.union(
+        v.literal("initiating"),
+        v.literal("ringing"),
+        v.literal("in-progress"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("busy"),
+        v.literal("no-answer"),
+        v.literal("canceled"),
+      ),
+    ),
     duration: v.optional(v.number()),
     endTime: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const call = await ctx.db
       .query("calls")
-      .withIndex("by_twilioCallSid", q => q.eq("twilioCallSid", args.twilioCallSid))
+      .withIndex("by_twilioCallSid", (q) =>
+        q.eq("twilioCallSid", args.twilioCallSid),
+      )
       .first();
-    
+
     if (call) {
       await ctx.db.patch(call._id, {
         status: args.status,
         duration: args.duration,
         endTime: args.endTime,
       });
+
+      // Call transcript service when call ends
+      if (args.status === "completed" && args.twilioCallSid) {
+        await ctx.scheduler.runAfter(0, api.transcript.callTranscriptionService, {
+          callId: args.twilioCallSid,
+        });
+      }
     }
   },
 });
@@ -95,7 +113,7 @@ export const updateCallStatus = mutation({
       v.literal("failed"),
       v.literal("busy"),
       v.literal("no-answer"),
-      v.literal("canceled")
+      v.literal("canceled"),
     ),
     twilioCallSid: v.optional(v.string()),
     duration: v.optional(v.number()),
@@ -104,6 +122,13 @@ export const updateCallStatus = mutation({
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
     await ctx.db.patch(id, updates);
+
+    // Call transcript service when call ends
+    if (args.status === "completed" && args.twilioCallSid) {
+      await ctx.scheduler.runAfter(0, api.transcript.callTranscriptionService, {
+        callId: args.twilioCallSid,
+      });
+    }
   },
 });
 
@@ -112,18 +137,16 @@ export const getActiveCall = query({
   handler: async (ctx) => {
     const activeCalls = await ctx.db
       .query("calls")
-      .filter(q => 
+      .filter((q) =>
         q.or(
           q.eq(q.field("status"), "initiating"),
           q.eq(q.field("status"), "ringing"),
-          q.eq(q.field("status"), "in-progress")
-        )
+          q.eq(q.field("status"), "in-progress"),
+        ),
       )
       .order("desc")
       .first();
-    
+
     return activeCalls;
   },
 });
-
-
