@@ -68,10 +68,11 @@ function DialPad() {
   const [digits, setDigits] = useState<string>("");
   const [activeCallId, setActiveCallId] = useState<Id<"calls"> | null>(null);
   const [callDuration, setCallDuration] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiAny = generatedApi as any;
   const createCall = useMutation(apiAny.calls.create);
   const updateCallStatus = useMutation(apiAny.calls.updateCallStatus);
-  const activeCall = useQuery(apiAny.calls.getActiveCall);
+  // const activeCall = useQuery(apiAny.calls.getActiveCall);
   
   const { 
     makeCall, 
@@ -241,6 +242,7 @@ function DialPad() {
 }
 
 function CallLog() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiAny = generatedApi as any;
   const items = useQuery(apiAny.calls.list) as CallLogItem[] | undefined;
   const remove = useMutation(apiAny.calls.remove);
