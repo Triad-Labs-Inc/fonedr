@@ -20,6 +20,9 @@ export default defineSchema({
     duration: v.optional(v.number()), // in seconds
     startTime: v.optional(v.number()), // timestamp
     endTime: v.optional(v.number()), // timestamp
+    conferenceRoom: v.optional(v.string()), // conference name if this was a conference call
+    participants: v.optional(v.array(v.string())), // phone numbers of conference participants
+    isConference: v.optional(v.boolean()), // whether this was a conference call
     createdAt: v.number(),
   }).index("by_createdAt", ["createdAt"])
     .index("by_twilioCallSid", ["twilioCallSid"]),

@@ -7,11 +7,31 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const to = formData.get("To") as string;
+    const conferenceMode = formData.get("ConferenceMode") as string;
+    const conferenceName = formData.get("ConferenceName") as string;
     
     const VoiceResponse = twilio.twiml.VoiceResponse;
     const response = new VoiceResponse();
 
-    if (to) {
+    if (conferenceMode === "true" && conferenceName) {
+      // Conference mode: connect caller to conference room
+      const dial = response.dial({
+        callerId: twilioPhoneNumber,
+      });
+      
+      dial.conference(
+        {
+          waitUrl: "http://twimlets.com/holdmusic?Bucket=com.twilio.music.classical",
+          startConferenceOnEnter: true,
+          endConferenceOnExit: true, // End conference when initiator leaves
+          statusCallback: `${request.nextUrl.origin}/api/twilio/conference-status`,
+          statusCallbackMethod: "POST",
+          statusCallbackEvent: ["start", "end", "join", "leave"],
+        },
+        conferenceName
+      );
+    } else if (to) {
+      // Regular call mode (existing behavior)
       const dial = response.dial({
         callerId: twilioPhoneNumber,
         answerOnBridge: true,

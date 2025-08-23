@@ -68,6 +68,7 @@ function DialPad() {
   const [digits, setDigits] = useState<string>("");
   const [activeCallId, setActiveCallId] = useState<Id<"calls"> | null>(null);
   const [callDuration, setCallDuration] = useState(0);
+  const [conferenceMode, setConferenceMode] = useState(true); // Default to conference mode
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const apiAny = generatedApi as any;
   const createCall = useMutation(apiAny.calls.create);
@@ -150,6 +151,19 @@ function DialPad() {
   return (
     <div className="max-w-md mx-auto h-full grid grid-rows-[auto_1fr_auto] p-4">
       <div className="flex flex-col items-center justify-center py-4">
+        {/* Conference Mode Toggle */}
+        <div className="flex items-center gap-2 mb-3">
+          <label className="flex items-center gap-2 text-sm text-foreground/60">
+            <input
+              type="checkbox"
+              checked={conferenceMode}
+              onChange={(e) => setConferenceMode(e.target.checked)}
+              disabled={!!currentCall}
+              className="rounded"
+            />
+            Conference Mode (3-way calling)
+          </label>
+        </div>
         {currentCall && callStatus === "connected" && (
           <div className="text-sm text-foreground/60 mb-2">
             Call Duration: {formatDuration(callDuration)}
@@ -200,15 +214,18 @@ function DialPad() {
               if (!digits || !isReady) return;
               try {
                 // Create call record in Convex
+                const secondParticipant = process.env.NEXT_PUBLIC_TWILIO_SECOND_PARTICIPANT || "";
                 const callId = await createCall({ 
                   number: digits, 
                   type: "outgoing",
-                  status: "initiating" 
+                  status: "initiating",
+                  isConference: conferenceMode,
+                  participants: conferenceMode ? [digits, secondParticipant] : undefined,
                 });
                 setActiveCallId(callId);
                 
-                // Make actual call via Twilio
-                const call = await makeCall(digits);
+                // Make actual call via Twilio (with conference mode if enabled)
+                const call = await makeCall(digits, conferenceMode);
                 if (call) {
                   // Update with Twilio SID
                   await updateCallStatus({

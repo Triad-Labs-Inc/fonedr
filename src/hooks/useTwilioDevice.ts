@@ -125,7 +125,7 @@ export function useTwilioDevice({
   }, [onCallStatusChange, onCallEnd]);
 
   // Make an outbound call
-  const makeCall = useCallback(async (phoneNumber: string): Promise<Call | null> => {
+  const makeCall = useCallback(async (phoneNumber: string, useConference: boolean = false): Promise<Call | null> => {
     if (!device || !isReady) {
       setError("Device not ready");
       return null;
@@ -143,11 +143,40 @@ export function useTwilioDevice({
         formattedNumber = "+" + formattedNumber;
       }
 
-      console.log("Making call to:", formattedNumber);
+      console.log("Making call to:", formattedNumber, "Conference mode:", useConference);
       
-      const params = {
-        To: formattedNumber,
-      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let params: any = {};
+      
+      if (useConference) {
+        // Conference mode: generate conference name and initiate outbound calls
+        const conferenceName = `Conference_${Date.now()}`;
+        
+        // First, initiate outbound calls to both participants
+        const conferenceResponse = await fetch("/api/twilio/conference", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            phoneNumber: formattedNumber,
+            conferenceName,
+          }),
+        });
+        
+        if (!conferenceResponse.ok) {
+          throw new Error("Failed to create conference calls");
+        }
+        
+        // Then connect the browser client to the conference
+        params = {
+          ConferenceMode: "true",
+          ConferenceName: conferenceName,
+        };
+      } else {
+        // Regular call mode
+        params = {
+          To: formattedNumber,
+        };
+      }
 
       const call = await device.connect({ params });
       setCurrentCall(call);

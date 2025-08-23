@@ -29,6 +29,9 @@ export const create = mutation({
       v.literal("no-answer"),
       v.literal("canceled")
     )),
+    conferenceRoom: v.optional(v.string()),
+    participants: v.optional(v.array(v.string())),
+    isConference: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const createdAt = Date.now();
