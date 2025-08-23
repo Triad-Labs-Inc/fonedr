@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState, useEffect } from "react";
-import { Phone, History, Delete, PhoneCall, PhoneOff } from "lucide-react";
+import { Phone, History, Delete, PhoneCall, PhoneOff, User, Plus } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api as generatedApi } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { useTwilioDevice } from "@/hooks/useTwilioDevice";
 
-type TabKey = "dial" | "log";
+type TabKey = "dial" | "log" | "contacts";
 
 type CallLogItem = {
   _id: Id<"calls">;
@@ -19,10 +19,20 @@ type CallLogItem = {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("dial");
+  const [digits, setDigits] = useState<string>("");
   return (
     <div className="font-sans min-h-dvh bg-background text-foreground grid grid-rows-[1fr_auto]">
       <main className="relative overflow-hidden">
-        {activeTab === "dial" ? <DialPad /> : <CallLog />}
+        {activeTab === "dial" && <DialPad digits={digits} setDigits={setDigits} />}
+        {activeTab === "log" && <CallLog />}
+        {activeTab === "contacts" && (
+          <Contacts
+            onSelectNumber={(n) => {
+              setDigits(n);
+              setActiveTab("dial");
+            }}
+          />
+        )}
       </main>
       <BottomTabs activeTab={activeTab} onChange={setActiveTab} />
     </div>
@@ -38,34 +48,49 @@ function BottomTabs({
 }) {
   return (
     <nav className="sticky bottom-0 w-full border-t border-black/10 dark:border-white/15 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="max-w-md mx-auto grid grid-cols-2">
+      <div className="max-w-md mx-auto grid grid-cols-3">
         <button
           aria-label="Dial pad"
           onClick={() => onChange("dial")}
-          className={`flex items-center justify-center gap-2 py-3 ${
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${
             activeTab === "dial" ? "text-foreground" : "text-foreground/60"
           }`}
         >
           <Phone className="size-5" />
-          <span className="text-sm">Dial</span>
+          <span className="text-xs">Dial</span>
         </button>
         <button
           aria-label="Call log"
           onClick={() => onChange("log")}
-          className={`flex items-center justify-center gap-2 py-3 ${
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${
             activeTab === "log" ? "text-foreground" : "text-foreground/60"
           }`}
         >
           <History className="size-5" />
-          <span className="text-sm">Calls</span>
+          <span className="text-xs">Calls</span>
+        </button>
+        <button
+          aria-label="Contacts"
+          onClick={() => onChange("contacts")}
+          className={`flex flex-col items-center justify-center gap-1 py-2 ${
+            activeTab === "contacts" ? "text-foreground" : "text-foreground/60"
+          }`}
+        >
+          <User className="size-5" />
+          <span className="text-xs">Contacts</span>
         </button>
       </div>
     </nav>
   );
 }
 
-function DialPad() {
-  const [digits, setDigits] = useState<string>("4806068199");
+function DialPad({
+  digits,
+  setDigits,
+}: {
+  digits: string;
+  setDigits: (val: string) => void;
+}) {
   const [activeCallId, setActiveCallId] = useState<Id<"calls"> | null>(null);
   const [callDuration, setCallDuration] = useState(0);
   const [conferenceMode, setConferenceMode] = useState(true); // Default to conference mode
@@ -74,6 +99,7 @@ function DialPad() {
   const createCall = useMutation(apiAny.calls.create);
   const updateCallStatus = useMutation(apiAny.calls.updateCallStatus);
   // const activeCall = useQuery(apiAny.calls.getActiveCall);
+  const contacts = useQuery(apiAny.contacts.list) as Array<{ _id: string; name: string; number: string }> | undefined;
   
   const { 
     makeCall, 
@@ -141,11 +167,11 @@ function DialPad() {
   );
 
   function press(key: string) {
-    setDigits((d) => (d + key).slice(0, 32));
+    setDigits((digits + key).slice(0, 32));
   }
 
   function backspace() {
-    setDigits((d) => d.slice(0, -1));
+    setDigits(digits.slice(0, -1));
   }
 
   return (
@@ -187,6 +213,17 @@ function DialPad() {
           className="w-full text-center text-3xl bg-transparent outline-none placeholder:text-foreground/40"
           disabled={!!currentCall}
         />
+        {(() => {
+          if (!contacts || digits.replace(/\D/g, "").length < 3) return null;
+          const normalizedDigits = digits.replace(/\D/g, "");
+          const match = contacts.find((c) => c.number.replace(/\D/g, "").endsWith(normalizedDigits));
+          if (!match) return null;
+          return (
+            <div className="mt-2 text-sm text-foreground/70">
+              {match.name} • {match.number}
+            </div>
+          );
+        })()}
       </div>
       <div className="grid grid-cols-3 gap-3 place-items-center content-center">
         {keys.map((k) => (
@@ -200,14 +237,8 @@ function DialPad() {
           </button>
         ))}
       </div>
-      <div className="flex items-center justify-center gap-6 py-5">
-        <button
-          onClick={backspace}
-          aria-label="Delete"
-          className="size-14 flex items-center justify-center rounded-full border border-black/10 dark:border-white/15"
-        >
-          <Delete className="size-5" />
-        </button>
+      <div className="grid grid-cols-3 items-center justify-items-center gap-6 py-5">
+        <span className="size-14" />
         {!currentCall ? (
           <button
             onClick={async () => {
@@ -240,19 +271,25 @@ function DialPad() {
               }
             }}
             disabled={!digits || !isReady}
-            className="size-16 rounded-full bg-green-500 text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
+            className="size-16 rounded-full bg-green-500 text-white flex items-center justify-center shadow-lg disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
           >
             <PhoneCall className="size-6" />
           </button>
         ) : (
           <button
             onClick={() => hangUp()}
-            className="size-16 rounded-full bg-red-500 text-white flex items-center justify-center active:scale-95"
+            className="size-16 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg active:scale-95"
           >
             <PhoneOff className="size-6" />
           </button>
         )}
-        <span className="size-14" />
+        <button
+          onClick={backspace}
+          aria-label="Delete"
+          className="size-14 flex items-center justify-center rounded-full border border-black/10 dark:border-white/15"
+        >
+          <Delete className="size-5" />
+        </button>
       </div>
     </div>
   );
@@ -286,14 +323,17 @@ function CallLog() {
               }}
             >
               <div className="py-3 px-3 flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {it.name || it.number}
-                  </p>
-                  <p className="text-xs text-foreground/60 truncate">
-                    {it.name ? it.number + " · " : ""}
-                    {it.type.charAt(0).toUpperCase() + it.type.slice(1)}
-                  </p>
+                <div className="flex items-center gap-3 min-w-0">
+                  <Avatar name={it.name} number={it.number} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {it.name || it.number}
+                    </p>
+                    <p className="text-xs text-foreground/60 truncate">
+                      {it.name ? it.number + " · " : ""}
+                      {it.type.charAt(0).toUpperCase() + it.type.slice(1)}
+                    </p>
+                  </div>
                 </div>
                 <div className="text-xs text-foreground/60 ml-3 shrink-0">
                   {formatTime(it.createdAt)}
@@ -303,6 +343,125 @@ function CallLog() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+function Contacts({ onSelectNumber }: { onSelectNumber: (number: string) => void }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const apiAny = generatedApi as any;
+  const contacts = useQuery(apiAny.contacts.list) as Array<{ _id: string; name: string; number: string }> | undefined;
+  const create = useMutation(apiAny.contacts.create);
+
+  const [name, setName] = useState("");
+  const [number, setNumber] = useState("");
+  const [open, setOpen] = useState(false);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !number.trim()) return;
+    try {
+      await create({ name: name.trim(), number: number.trim() });
+      setName("");
+      setNumber("");
+      setOpen(false);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to add contact");
+    }
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-4">
+      <h1 className="text-xl font-semibold mb-3">Contacts</h1>
+      <div className="mb-2" />
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setOpen(false);
+          }}
+        >
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative z-10 w-full sm:max-w-sm sm:rounded-xl sm:border sm:border-black/10 sm:dark:border-white/15 bg-background p-4 shadow-lg">
+            <h2 className="text-base font-semibold mb-3">New contact</h2>
+            <form onSubmit={onSubmit} className="grid grid-cols-1 gap-2">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Name"
+                autoFocus
+                className="w-full rounded-md border border-black/10 dark:border-white/15 bg-transparent px-3 py-2 outline-none"
+              />
+              <input
+                value={number}
+                onChange={(e) => setNumber(e.target.value)}
+                placeholder="Phone number"
+                inputMode="tel"
+                className="w-full rounded-md border border-black/10 dark:border-white/15 bg-transparent px-3 py-2 outline-none"
+              />
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md border border-black/10 dark:border-white/15 px-3 py-2 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-md bg-foreground text-background text-sm font-medium px-3 py-2 disabled:opacity-50"
+                  disabled={!name.trim() || !number.trim()}
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {!contacts ? (
+        <p className="text-sm text-foreground/60">Loading…</p>
+      ) : contacts.length === 0 ? (
+        <p className="text-sm text-foreground/60">No contacts yet</p>
+      ) : (
+        <ul className="divide-y divide-black/10 dark:divide-white/10">
+          {contacts.map((c) => (
+            <li key={c._id} className="py-1">
+              <button
+                onClick={() => onSelectNumber(c.number)}
+                className="w-full px-2 py-2 rounded-lg hover:bg-foreground/5 active:bg-foreground/10 transition-colors flex items-center justify-between"
+              >
+                <div className="flex items-center gap-3 min-w-0 text-left">
+                  <Avatar name={c.name} number={c.number} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{c.name}</p>
+                    <p className="text-xs text-foreground/60 truncate">{c.number}</p>
+                  </div>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button
+        onClick={() => setOpen(true)}
+        aria-label="Add contact"
+        className="fixed bottom-20 right-6 z-40 size-14 rounded-full bg-foreground text-background flex items-center justify-center shadow-xl"
+      >
+        <Plus className="size-6" />
+      </button>
+    </div>
+  );
+}
+
+function Avatar({ name, number }: { name?: string; number: string }) {
+  const label = (name?.trim() ? name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase()).join("") : number.replace(/\D/g, "").slice(-2)) || "?";
+  return (
+    <div className="size-9 rounded-full bg-foreground/10 text-foreground flex items-center justify-center text-xs font-medium">
+      {label}
     </div>
   );
 }

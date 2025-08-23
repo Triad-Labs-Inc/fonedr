@@ -26,6 +26,13 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_createdAt", ["createdAt"])
     .index("by_twilioCallSid", ["twilioCallSid"]),
+  contacts: defineTable({
+    name: v.string(),
+    number: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_number", ["number"])
+    .index("by_createdAt", ["createdAt"]),
 });
 
 

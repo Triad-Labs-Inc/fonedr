@@ -40,7 +40,6 @@ export async function POST(request: NextRequest) {
     // Call the user-entered number and connect to conference
     const call1Promise = client.calls.create({
       url: conferenceUrl,
-      // to: phoneNumber,
       to: secondParticipant,
       from: twilioPhoneNumber!,
       statusCallback: statusCallbackUrl,
@@ -50,7 +49,6 @@ export async function POST(request: NextRequest) {
     // Call the second participant and connect to conference
     const call2Promise = client.calls.create({
       url: conferenceUrl,
-      // to: secondParticipant,
       to: phoneNumber,
       from: twilioPhoneNumber!,
       statusCallback: statusCallbackUrl,
