@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Device, Call } from "@twilio/voice-sdk";
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 type CallStatus = "initiating" | "ringing" | "in-progress" | "completed" | "failed" | "busy" | "no-answer" | "canceled";
 
@@ -20,6 +22,8 @@ export function useTwilioDevice({
   const [callStatus, setCallStatus] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const deviceRef = useRef<Device | null>(null);
+
+  const startTranscription = useAction(api.transcript.callTranscriptionService)
 
   // Initialize Twilio Device
   const initializeDevice = useCallback(async () => {
@@ -196,6 +200,9 @@ export function useTwilioDevice({
       console.log("Hanging up call");
       currentCall.disconnect();
       setCurrentCall(null);
+      startTranscription({
+        callId: '1c604de4-bce6-4eda-8e12-91b533a89d1f',
+      })
     }
   }, [currentCall]);
 

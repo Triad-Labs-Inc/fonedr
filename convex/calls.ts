@@ -92,12 +92,6 @@ export const updateByTwilioSid = mutation({
         endTime: args.endTime,
       });
 
-      // Call transcript service when call ends
-      if (args.status === "completed" && args.twilioCallSid) {
-        await ctx.scheduler.runAfter(0, api.transcript.callTranscriptionService, {
-          callId: args.twilioCallSid,
-        });
-      }
     }
   },
 });
@@ -122,13 +116,6 @@ export const updateCallStatus = mutation({
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
     await ctx.db.patch(id, updates);
-
-    // Call transcript service when call ends
-    if (args.status === "completed" && args.twilioCallSid) {
-      await ctx.scheduler.runAfter(0, api.transcript.callTranscriptionService, {
-        callId: args.twilioCallSid,
-      });
-    }
   },
 });
 
